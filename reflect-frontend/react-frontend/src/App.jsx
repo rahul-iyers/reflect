@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
-import { Moon, CheckCircle, TrendingUp } from 'lucide-react';
+import { Moon, CheckCircle, TrendingUp, BookOpen, Calendar } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import ProgressBar from './components/ProgressBar';
 import ReflectionQuestion from './components/ReflectionQuestion';
 import QuestionNavigation from './components/QuestionNavigation';
 import Notification from './components/Notification';
+import ReflectionSummary from './components/ReflectionSummary';
 import GoalModal from './views/GoalModal';
 import JournalModal from './views/JournalModal';
 import ActiveGoalsView from './views/ActiveGoalsView';
 import CompletedGoalsView from './views/CompletedGoalsView';
+import JournalEntriesView from './components/JournalEntriesView';
+import PreviousDaysView from './components/PreviousDaysView';
 import useReflection from './hooks/useReflection';
 import useGoals from './hooks/useGoals';
 import * as api from './services/api';
@@ -58,7 +61,6 @@ export default function ReflectionApp() {
     }
   ];
 
-  // Handle view changes from sidebar
   const handleViewChange = (viewId) => {
     if (viewId === 'new-goal') {
       setGoalModalOpen(true);
@@ -69,7 +71,6 @@ export default function ReflectionApp() {
     }
   };
 
-  // Handle goal creation
   const handleCreateGoal = async (description, deadline) => {
     setGoalLoading(true);
     try {
@@ -87,7 +88,6 @@ export default function ReflectionApp() {
     }
   };
 
-  // Handle journal entry creation
   const handleCreateJournal = async (content) => {
     setJournalLoading(true);
     try {
@@ -99,6 +99,13 @@ export default function ReflectionApp() {
         message: 'Your thoughts have been captured.'
       });
       setTimeout(() => setNotification(null), 3000);
+      
+      // If we're on journal view, we might want to refresh
+      if (activeView === 'journal-entries') {
+        // Trigger a re-render by changing key or using a refresh function
+        setActiveView('journal-entries-refresh');
+        setTimeout(() => setActiveView('journal-entries'), 10);
+      }
     } catch (err) {
       throw err;
     } finally {
@@ -106,7 +113,6 @@ export default function ReflectionApp() {
     }
   };
 
-  // Handle goal completion
   const handleCompleteGoal = async (goalId) => {
     try {
       await goals.updateGoalStatus(goalId, 'completed');
@@ -125,7 +131,7 @@ export default function ReflectionApp() {
     }
   };
 
-    const handleDeleteGoal = async (goalId) => {
+  const handleDeleteGoal = async (goalId) => {
     try {
       await api.deleteGoal(USER_ID, goalId);
       await goals.loadGoals(); // Refresh goals list
@@ -144,7 +150,6 @@ export default function ReflectionApp() {
     }
   };
 
-  // Handle goal reopening
   const handleReopenGoal = async (goalId) => {
     try {
       await goals.updateGoalStatus(goalId, 'active');
@@ -163,10 +168,39 @@ export default function ReflectionApp() {
     }
   };
 
-  // Render content based on active view
   const renderContent = () => {
     switch (activeView) {
       case 'evening-reflection':
+        // Show summary if completed, otherwise show questions
+        if (reflection.completed) {
+          return (
+            <div className="flex-1 overflow-y-auto">
+              <div className="max-w-3xl mx-auto px-8 py-16">
+                {reflection.success && (
+                  <Notification
+                    type="success"
+                    title="Reflection updated! ✨"
+                    message="Your changes have been saved."
+                  />
+                )}
+                {reflection.error && (
+                  <Notification
+                    type="error"
+                    title="Error"
+                    message={reflection.error}
+                    onClose={() => reflection.setError(null)}
+                  />
+                )}
+                <ReflectionSummary
+                  reflection={reflection.savedReflection}
+                  onUpdate={reflection.handleUpdateReflection}
+                  loading={reflection.loading}
+                />
+              </div>
+            </div>
+          );
+        }
+        
         return (
           <>
             <ProgressBar
@@ -224,7 +258,7 @@ export default function ReflectionApp() {
               <ActiveGoalsView
                 goals={goals.activeGoals}
                 onComplete={handleCompleteGoal}
-                onDelete={(id) => console.log('Delete goal', id)}
+                onDelete={handleDeleteGoal}
                 loading={goals.loading}
               />
             </div>
@@ -250,7 +284,40 @@ export default function ReflectionApp() {
           </div>
         );
 
+      case 'journal-entries':
+      case 'journal-entries-refresh':
+        return (
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-4xl mx-auto px-8 py-16">
+              <div className="mb-8">
+                <h1 className="text-4xl font-bold text-zinc-100 mb-2" style={{ fontFamily: "'Playfair Display', serif" }}>
+                  Journal Entries
+                </h1>
+                <p className="text-zinc-400">Your thoughts and reflections over time</p>
+              </div>
+              <JournalEntriesView userId={USER_ID} key={activeView} />
+            </div>
+          </div>
+        );
+
       case 'previous-days':
+        return (
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-6xl mx-auto px-8 py-16">
+              <div className="mb-8">
+                <div className="flex items-center gap-3 mb-2">
+                  <Calendar className="text-amber-400" size={32} />
+                  <h1 className="text-4xl font-bold text-zinc-100" style={{ fontFamily: "'Playfair Display', serif" }}>
+                    Previous Days
+                  </h1>
+                </div>
+                <p className="text-zinc-400">Browse your past reflections</p>
+              </div>
+              <PreviousDaysView userId={USER_ID} />
+            </div>
+          </div>
+        );
+
       case 'insights':
         return (
           <div className="flex-1 overflow-y-auto">
@@ -261,7 +328,7 @@ export default function ReflectionApp() {
               <h1 className="text-3xl font-bold text-zinc-100 mb-2" style={{ fontFamily: "'Playfair Display', serif" }}>
                 Coming Soon
               </h1>
-              <p className="text-zinc-400">This feature is under development</p>
+              <p className="text-zinc-400">AI-powered insights are under development</p>
             </div>
           </div>
         );
@@ -270,6 +337,26 @@ export default function ReflectionApp() {
         return null;
     }
   };
+
+  // Updated sidebar items to include journal entries
+  const sidebarItemsConfig = [
+    { 
+      id: 'evening-reflection', 
+      label: timeOfDay === 'evening' ? 'Tonight\'s Reflection' : 'Morning Insights', 
+      icon: timeOfDay === 'evening' ? Moon : TrendingUp,
+      badge: timeOfDay === 'evening' ? 'Now' : null,
+      highlight: true
+    },
+    { type: 'divider' },
+    { id: 'new-goal', label: 'New Goal', icon: Plus, action: true },
+    { id: 'new-journal', label: 'New Journal Entry', icon: PenSquare, action: true },
+    { type: 'divider' },
+    { id: 'journal-entries', label: 'Journal Entries', icon: BookOpen },
+    { id: 'active-goals', label: 'Active Goals', icon: Target, badge: goals.activeGoals.length || null },
+    { id: 'completed-goals', label: 'Completed Goals', icon: CheckCircle, badge: goals.completedGoals.length || null },
+    { id: 'previous-days', label: 'Previous Days', icon: Calendar },
+    { id: 'insights', label: 'AI Insights', icon: TrendingUp },
+  ];
 
   return (
     <div className="flex h-screen bg-zinc-950 overflow-hidden">
@@ -287,7 +374,6 @@ export default function ReflectionApp() {
 
       <main className={`flex-1 transition-all duration-500 ${sidebarOpen ? 'lg:ml-72' : 'lg:ml-20'}`}>
         <div className="h-screen flex flex-col bg-zinc-950">
-          {/* Global Notification */}
           {notification && (
             <div className="absolute top-4 right-4 z-50 animate-fade-in">
               <div className="bg-zinc-900 border border-amber-400/20 rounded-xl shadow-2xl">
@@ -305,7 +391,6 @@ export default function ReflectionApp() {
         </div>
       </main>
 
-      {/* Modals */}
       <GoalModal
         isOpen={goalModalOpen}
         onClose={() => setGoalModalOpen(false)}
