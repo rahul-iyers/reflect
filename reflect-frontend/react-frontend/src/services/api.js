@@ -87,6 +87,28 @@ export const getJournalEntriesForDate = async (userId, date) => {
   return handleResponse(response);
 };
 
+/**
+ * Get all journal entries for a user
+ */
+export const getAllJournalEntries = async (userId) => {
+  const response = await fetch(`${API_BASE_URL}/journal-entries`, {
+    method: 'GET',
+    headers: getHeaders(userId),
+  });
+  return handleResponse(response);
+};
+
+/**
+ * Delete a journal entry
+ */
+export const deleteJournalEntry = async (userId, entryId) => {
+  const response = await fetch(`${API_BASE_URL}/journal-entries/${entryId}`, {
+    method: 'DELETE',
+    headers: getHeaders(userId),
+  });
+  return handleResponse(response);
+};
+
 // ==================== GOALS ====================
 
 /**
@@ -162,10 +184,36 @@ export const getYesterdayDate = () => {
  */
 export const formatDate = (dateString) => {
   const date = new Date(dateString + 'T00:00:00');
-  return date.toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
   });
+};
+
+/**
+ * Get start and end dates for a given month
+ */
+export const getMonthDateRange = (year, month) => {
+  const startDate = new Date(year, month, 1);
+  const endDate = new Date(year, month + 1, 0);
+
+  return {
+    start: startDate.toISOString().split('T')[0],
+    end: endDate.toISOString().split('T')[0]
+  };
+};
+
+// ==================== STATS ====================
+
+/**
+ * Get user statistics (streak, total reflections)
+ */
+export const getUserStats = async (userId) => {
+  const response = await fetch(`${API_BASE_URL}/stats`, {
+    method: 'GET',
+    headers: getHeaders(userId),
+  });
+  return handleResponse(response);
 };

@@ -19,6 +19,7 @@ from services.reflections import (
 from services.journal_entries import (
     create_journal_entry,
     get_journal_entries_for_date,
+    delete_journal_entry,
     InvalidJournalEntry,
     JournalEntryNotFound
 )
@@ -31,6 +32,8 @@ from services.goals import (
     GoalNotFound
 )
 
+from services.stats import get_user_stats
+
 # -- HELPERS --
 
 def parse_date(value: str) -> date:
@@ -40,6 +43,11 @@ def parse_date(value: str) -> date:
         raise InvalidReflectionDate("invalid date format: should be YYYY-MM-DD.")
 
 def reflection_to_dict(reflection):
+    # Ensure timezone-aware datetime serialization
+    from datetime import timezone
+    created_at = reflection.created_at.replace(tzinfo=timezone.utc) if reflection.created_at.tzinfo is None else reflection.created_at
+    updated_at = reflection.updated_at.replace(tzinfo=timezone.utc) if reflection.updated_at.tzinfo is None else reflection.updated_at
+
     return {
         "id": reflection.id,
         "user_id": reflection.user_id,
@@ -47,29 +55,38 @@ def reflection_to_dict(reflection):
         "summary": reflection.summary,
         "accomplishments": reflection.accomplishments,
         "improvements_to_make": reflection.improvements_to_make,
-        "created_at": reflection.created_at.isoformat(),
-        "updated_at": reflection.updated_at.isoformat()
+        "created_at": created_at.isoformat(),
+        "updated_at": updated_at.isoformat()
     }
 
 def journal_entry_to_dict(entry):
+    # Ensure timezone-aware datetime serialization
+    from datetime import timezone
+    created_at = entry.created_at.replace(tzinfo=timezone.utc) if entry.created_at.tzinfo is None else entry.created_at
+    updated_at = entry.updated_at.replace(tzinfo=timezone.utc) if entry.updated_at.tzinfo is None else entry.updated_at
+
     return {
         "id": entry.id,
         "user_id": entry.user_id,
         "content": entry.content,
         "entry_date": entry.entry_date.isoformat(),
         "reflection_id": entry.reflection_id,
-        "created_at": entry.created_at.isoformat(),
-        "updated_at": entry.updated_at.isoformat(),
+        "created_at": created_at.isoformat(),
+        "updated_at": updated_at.isoformat(),
     }
 
 def goal_to_dict(goal):
+    # Ensure timezone-aware datetime serialization
+    from datetime import timezone
+    created_at = goal.created_at.replace(tzinfo=timezone.utc) if goal.created_at.tzinfo is None else goal.created_at
+
     return {
         "id": goal.id,
         "user_id": goal.user_id,
         "description": goal.description,
         "status": goal.status,
         "deadline": goal.deadline.isoformat() if goal.deadline else None,
-        "created_at": goal.created_at.isoformat(),
+        "created_at": created_at.isoformat(),
     }
 
 # -- ROUTES --
@@ -219,6 +236,24 @@ def get_journal_entries_route():
         db.close()
 
 
+@app.route("/api/journal-entries/<int:entry_id>", methods=["DELETE"])
+def delete_journal_entry_route(entry_id):
+    db = SessionLocal()
+    try:
+        delete_journal_entry(
+            db=db,
+            entry_id=entry_id,
+            user_id=g.user_id,
+        )
+        return jsonify({"message": "Journal entry deleted"}), 200
+
+    except JournalEntryNotFound as e:
+        return jsonify({"error": str(e)}), 404
+
+    finally:
+        db.close()
+
+
 # -- GOALS ROUTES --
 
 @app.route("/api/goals", methods=["POST"])
@@ -286,6 +321,17 @@ def update_goal_route(goal_id: int):
     except InvalidGoal as e:
         return jsonify({"error": str(e)}), 400
 
+    finally:
+        db.close()
+
+# -- STATS ROUTES --
+
+@app.route("/api/stats", methods=["GET"])
+def get_stats_route():
+    db = SessionLocal()
+    try:
+        stats = get_user_stats(db=db, user_id=g.user_id)
+        return jsonify(stats), 200
     finally:
         db.close()
 

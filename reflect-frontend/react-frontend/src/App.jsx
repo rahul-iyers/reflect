@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Moon, CheckCircle, TrendingUp, BookOpen, Calendar } from 'lucide-react';
+import { Moon, CheckCircle, TrendingUp, BookOpen, Calendar, Plus, PenSquare, Target } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import ProgressBar from './components/ProgressBar';
 import ReflectionQuestion from './components/ReflectionQuestion';
@@ -11,6 +11,7 @@ import JournalModal from './views/JournalModal';
 import ActiveGoalsView from './views/ActiveGoalsView';
 import CompletedGoalsView from './views/CompletedGoalsView';
 import JournalEntriesView from './components/JournalEntriesView';
+import TodayJournalView from './components/TodayJournalView';
 import PreviousDaysView from './components/PreviousDaysView';
 import useReflection from './hooks/useReflection';
 import useGoals from './hooks/useGoals';
@@ -18,7 +19,7 @@ import * as api from './services/api';
 
 export default function ReflectionApp() {
   const USER_ID = 1;
-  
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeView, setActiveView] = useState('evening-reflection');
   const [goalModalOpen, setGoalModalOpen] = useState(false);
@@ -26,13 +27,27 @@ export default function ReflectionApp() {
   const [goalLoading, setGoalLoading] = useState(false);
   const [journalLoading, setJournalLoading] = useState(false);
   const [notification, setNotification] = useState(null);
-  
+  const [stats, setStats] = useState({ current_streak: 0, total_reflections: 0 });
+
   const reflection = useReflection(USER_ID);
   const goals = useGoals(USER_ID);
+
+  // Load stats on mount
+  React.useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const data = await api.getUserStats(USER_ID);
+        setStats(data);
+      } catch (err) {
+        console.error('Error loading stats:', err);
+      }
+    };
+    loadStats();
+  }, [USER_ID]);
   
   const currentHour = new Date().getHours();
   const timeOfDay = currentHour >= 6 && currentHour < 18 ? 'morning' : 'evening';
-  const currentStreak = 12;
+  const colorScheme = timeOfDay === 'morning' ? 'blue' : 'amber';
 
   const reflectionQuestions = [
     {
@@ -99,12 +114,15 @@ export default function ReflectionApp() {
         message: 'Your thoughts have been captured.'
       });
       setTimeout(() => setNotification(null), 3000);
-      
-      // If we're on journal view, we might want to refresh
+
+      // If we're on journal view, refresh it
       if (activeView === 'journal-entries') {
-        // Trigger a re-render by changing key or using a refresh function
         setActiveView('journal-entries-refresh');
         setTimeout(() => setActiveView('journal-entries'), 10);
+      } else if (activeView === 'today-journal') {
+        // Refresh today's journal view
+        setActiveView('today-journal-refresh');
+        setTimeout(() => setActiveView('today-journal'), 10);
       }
     } catch (err) {
       throw err;
@@ -278,8 +296,19 @@ export default function ReflectionApp() {
               <CompletedGoalsView
                 goals={goals.completedGoals}
                 onReopen={handleReopenGoal}
+                onDelete={handleDeleteGoal}
                 loading={goals.loading}
               />
+            </div>
+          </div>
+        );
+
+      case 'today-journal':
+      case 'today-journal-refresh':
+        return (
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-4xl mx-auto px-8 py-16">
+              <TodayJournalView userId={USER_ID} key={activeView} />
             </div>
           </div>
         );
@@ -365,7 +394,8 @@ export default function ReflectionApp() {
         onToggle={() => setSidebarOpen(!sidebarOpen)}
         activeView={activeView}
         onViewChange={handleViewChange}
-        currentStreak={currentStreak}
+        currentStreak={stats.current_streak}
+        totalReflections={stats.total_reflections}
         activeGoalsCount={goals.activeGoals.length}
         completedGoalsCount={goals.completedGoals.length}
         timeOfDay={timeOfDay}

@@ -126,3 +126,30 @@ def update_journal_entry(
     db.refresh(entry)
 
     return entry
+
+
+def delete_journal_entry(
+    *,
+    db: Session,
+    entry_id: int,
+    user_id: int,
+) -> None:
+    """
+    Delete a journal entry.
+
+    Requires explicit entry_id and verifies user ownership.
+    """
+    entry = (
+        db.query(JournalEntry)
+        .filter(
+            JournalEntry.id == entry_id,
+            JournalEntry.user_id == user_id,
+        )
+        .one_or_none()
+    )
+
+    if entry is None:
+        raise JournalEntryNotFound("Journal entry not found.")
+
+    db.delete(entry)
+    db.commit()

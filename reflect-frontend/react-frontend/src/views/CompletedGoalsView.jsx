@@ -1,14 +1,32 @@
-import React from 'react';
-import { CheckCircle, Undo2, Calendar, Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { CheckCircle, Undo2, Calendar, Loader2, Trash2 } from 'lucide-react';
+import ConfirmDialog from '../components/ConfirmDialog';
 
-export default function CompletedGoalsView({ goals, onReopen, loading }) {
+export default function CompletedGoalsView({ goals, onReopen, onDelete, loading }) {
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
       day: 'numeric',
       year: 'numeric'
     });
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+
+    setDeleting(true);
+    try {
+      await onDelete(deleteConfirm);
+      setDeleteConfirm(null);
+    } catch (err) {
+      console.error('Error deleting goal:', err);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   if (loading) {
@@ -62,16 +80,37 @@ export default function CompletedGoalsView({ goals, onReopen, loading }) {
               )}
             </div>
 
-            <button
-              onClick={() => onReopen(goal.id)}
-              className="p-2 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-all opacity-0 group-hover:opacity-100"
-              title="Reopen goal"
-            >
-              <Undo2 size={18} />
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => onReopen(goal.id)}
+                className="p-2 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-all opacity-0 group-hover:opacity-100"
+                title="Reopen goal"
+              >
+                <Undo2 size={18} />
+              </button>
+              <button
+                onClick={() => setDeleteConfirm(goal.id)}
+                className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all opacity-0 group-hover:opacity-100"
+                title="Delete goal"
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
           </div>
         </div>
       ))}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirm !== null}
+        onClose={() => setDeleteConfirm(null)}
+        onConfirm={handleDelete}
+        title="Delete Goal"
+        message="Are you sure you want to permanently delete this goal? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        loading={deleting}
+      />
     </div>
   );
 }

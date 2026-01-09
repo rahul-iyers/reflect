@@ -1,15 +1,16 @@
 import React from 'react';
-import { 
-  Menu, X, BookOpen, Target, CheckCircle, Calendar, 
-  TrendingUp, PenSquare, Sunrise, Moon, Plus, ChevronRight
+import {
+  Menu, X, BookOpen, Target, CheckCircle, Calendar,
+  TrendingUp, PenSquare, Sunrise, Moon, Plus, ChevronRight, FileText
 } from 'lucide-react';
 
-export default function Sidebar({ 
-  isOpen, 
-  onToggle, 
-  activeView, 
+export default function Sidebar({
+  isOpen,
+  onToggle,
+  activeView,
   onViewChange,
   currentStreak,
+  totalReflections,
   activeGoalsCount,
   completedGoalsCount,
   timeOfDay,
@@ -27,6 +28,8 @@ export default function Sidebar({
     { id: 'new-goal', label: 'New Goal', icon: Plus, action: true },
     { id: 'new-journal', label: 'New Journal Entry', icon: PenSquare, action: true },
     { type: 'divider' },
+    { id: 'today-journal', label: 'Today\'s Journal', icon: FileText },
+    { id: 'journal-entries', label: 'All Journal Entries', icon: BookOpen },
     { id: 'active-goals', label: 'Active Goals', icon: Target, badge: activeGoalsCount || null },
     { id: 'completed-goals', label: 'Completed Goals', icon: CheckCircle, badge: completedGoalsCount || null },
     { id: 'previous-days', label: 'Previous Days', icon: Calendar },
@@ -71,7 +74,7 @@ export default function Sidebar({
                     Reflect
                   </h1>
                   <p className="text-xs text-zinc-500">
-                    Day {currentStreak}
+                    {totalReflections} {totalReflections === 1 ? 'reflection' : 'reflections'}
                   </p>
                 </div>
               )}

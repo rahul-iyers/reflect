@@ -1,19 +1,37 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Target, Calendar, CheckCircle, Trash2, Loader2 } from 'lucide-react';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function ActiveGoalsView({ goals, onComplete, onDelete, loading }) {
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
   const formatDeadline = (deadline) => {
     if (!deadline) return null;
     const date = new Date(deadline);
     const today = new Date();
     const diffTime = date - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 0) return { text: 'Overdue', color: 'text-red-400' };
     if (diffDays === 0) return { text: 'Due today', color: 'text-orange-400' };
     if (diffDays === 1) return { text: 'Due tomorrow', color: 'text-yellow-400' };
     if (diffDays <= 7) return { text: `${diffDays} days left`, color: 'text-yellow-400' };
     return { text: date.toLocaleDateString(), color: 'text-zinc-400' };
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+
+    setDeleting(true);
+    try {
+      await onDelete(deleteConfirm);
+      setDeleteConfirm(null);
+    } catch (err) {
+      console.error('Error deleting goal:', err);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   if (loading) {
@@ -75,7 +93,7 @@ export default function ActiveGoalsView({ goals, onComplete, onDelete, loading }
                   <CheckCircle size={18} />
                 </button>
                 <button
-                  onClick={() => onDelete(goal.id)}
+                  onClick={() => setDeleteConfirm(goal.id)}
                   className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
                   title="Delete goal"
                 >
@@ -86,6 +104,18 @@ export default function ActiveGoalsView({ goals, onComplete, onDelete, loading }
           </div>
         );
       })}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirm !== null}
+        onClose={() => setDeleteConfirm(null)}
+        onConfirm={handleDelete}
+        title="Delete Goal"
+        message="Are you sure you want to delete this goal? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        loading={deleting}
+      />
     </div>
   );
 }
