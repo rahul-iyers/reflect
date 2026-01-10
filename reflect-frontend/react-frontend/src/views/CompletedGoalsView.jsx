@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { CheckCircle, Undo2, Calendar, Loader2, Trash2 } from 'lucide-react';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function CompletedGoalsView({ goals, onReopen, onDelete, loading }) {
+  const { timeOfDay } = useTheme();
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -32,7 +34,7 @@ export default function CompletedGoalsView({ goals, onReopen, onDelete, loading 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="animate-spin text-amber-400" size={48} />
+        <Loader2 className={`animate-spin ${timeOfDay === 'morning' ? 'text-blue-400' : 'text-amber-400'}`} size={48} />
       </div>
     );
   }
@@ -52,7 +54,7 @@ export default function CompletedGoalsView({ goals, onReopen, onDelete, loading 
   return (
     <div className="space-y-4">
       <div className="mb-6 text-center">
-        <p className="text-amber-400 font-semibold text-lg">
+        <p className={`font-semibold text-lg ${timeOfDay === 'morning' ? 'text-blue-400' : 'text-amber-400'}`}>
           🎉 {goals.length} {goals.length === 1 ? 'Goal' : 'Goals'} Completed!
         </p>
       </div>
@@ -83,7 +85,11 @@ export default function CompletedGoalsView({ goals, onReopen, onDelete, loading 
             <div className="flex gap-2">
               <button
                 onClick={() => onReopen(goal.id)}
-                className="p-2 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-all opacity-0 group-hover:opacity-100"
+                className={`p-2 rounded-lg transition-all opacity-0 group-hover:opacity-100 ${
+                  timeOfDay === 'morning'
+                    ? 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20'
+                    : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'
+                }`}
                 title="Reopen goal"
               >
                 <Undo2 size={18} />

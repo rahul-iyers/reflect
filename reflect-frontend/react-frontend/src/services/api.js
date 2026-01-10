@@ -164,19 +164,26 @@ export const deleteGoal = async (userId, goalId) => {
 // ==================== UTILITY FUNCTIONS ====================
 
 /**
- * Get today's date in YYYY-MM-DD format
+ * Get today's date in YYYY-MM-DD format (using local timezone)
  */
 export const getTodayDate = () => {
-  return new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 /**
- * Get yesterday's date in YYYY-MM-DD format
+ * Get yesterday's date in YYYY-MM-DD format (using local timezone)
  */
 export const getYesterdayDate = () => {
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  return yesterday.toISOString().split('T')[0];
+  const year = yesterday.getFullYear();
+  const month = String(yesterday.getMonth() + 1).padStart(2, '0');
+  const day = String(yesterday.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 /**
@@ -202,6 +209,80 @@ export const getMonthDateRange = (year, month) => {
   return {
     start: startDate.toISOString().split('T')[0],
     end: endDate.toISOString().split('T')[0]
+  };
+};
+
+// ==================== SCHEDULED TASKS ====================
+
+/**
+ * Create a new scheduled task
+ */
+export const createScheduledTask = async (userId, taskData) => {
+  const response = await fetch(`${API_BASE_URL}/scheduled-tasks`, {
+    method: 'POST',
+    headers: getHeaders(userId),
+    body: JSON.stringify(taskData),
+  });
+  return handleResponse(response);
+};
+
+/**
+ * Get scheduled tasks for a date range (week)
+ */
+export const getScheduledTasks = async (userId, startDate, endDate) => {
+  const response = await fetch(
+    `${API_BASE_URL}/scheduled-tasks?start_date=${startDate}&end_date=${endDate}`,
+    {
+      method: 'GET',
+      headers: getHeaders(userId),
+    }
+  );
+  return handleResponse(response);
+};
+
+/**
+ * Update a scheduled task
+ */
+export const updateScheduledTask = async (userId, taskId, updates) => {
+  const response = await fetch(`${API_BASE_URL}/scheduled-tasks/${taskId}`, {
+    method: 'PATCH',
+    headers: getHeaders(userId),
+    body: JSON.stringify(updates),
+  });
+  return handleResponse(response);
+};
+
+/**
+ * Delete a scheduled task
+ */
+export const deleteScheduledTask = async (userId, taskId) => {
+  const response = await fetch(`${API_BASE_URL}/scheduled-tasks/${taskId}`, {
+    method: 'DELETE',
+    headers: getHeaders(userId),
+  });
+  return handleResponse(response);
+};
+
+/**
+ * Get start and end dates for the current week (Sunday - Saturday)
+ */
+export const getWeekDateRange = (date = new Date()) => {
+  const currentDate = new Date(date);
+  const day = currentDate.getDay();
+
+  // Get Sunday of current week
+  const sunday = new Date(currentDate);
+  sunday.setDate(currentDate.getDate() - day);
+
+  // Get Saturday of current week
+  const saturday = new Date(sunday);
+  saturday.setDate(sunday.getDate() + 6);
+
+  return {
+    start: sunday.toISOString().split('T')[0],
+    end: saturday.toISOString().split('T')[0],
+    sunday,
+    saturday
   };
 };
 

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, time, datetime
 from flask import Flask, request, jsonify, g
 from flask_cors import CORS
 app = Flask(__name__)
@@ -34,6 +34,14 @@ from services.goals import (
 
 from services.stats import get_user_stats
 
+from services.scheduled_tasks import (
+    create_scheduled_task,
+    get_scheduled_tasks_for_week,
+    update_scheduled_task,
+    delete_scheduled_task,
+    ScheduledTaskNotFound
+)
+
 # -- HELPERS --
 
 def parse_date(value: str) -> date:
@@ -41,6 +49,13 @@ def parse_date(value: str) -> date:
         return date.fromisoformat(value)
     except ValueError:
         raise InvalidReflectionDate("invalid date format: should be YYYY-MM-DD.")
+
+def parse_time(value: str) -> time:
+    """Parse time string in HH:MM format"""
+    try:
+        return datetime.strptime(value, "%H:%M").time()
+    except ValueError:
+        raise ValueError("invalid time format: should be HH:MM.")
 
 def reflection_to_dict(reflection):
     # Ensure timezone-aware datetime serialization
@@ -87,6 +102,29 @@ def goal_to_dict(goal):
         "status": goal.status,
         "deadline": goal.deadline.isoformat() if goal.deadline else None,
         "created_at": created_at.isoformat(),
+    }
+
+def scheduled_task_to_dict(task):
+    # Ensure timezone-aware datetime serialization
+    from datetime import timezone
+    created_at = task.created_at.replace(tzinfo=timezone.utc) if task.created_at.tzinfo is None else task.created_at
+    updated_at = task.updated_at.replace(tzinfo=timezone.utc) if task.updated_at.tzinfo is None else task.updated_at
+    completed_at = task.completed_at.replace(tzinfo=timezone.utc) if task.completed_at and task.completed_at.tzinfo is None else task.completed_at
+
+    return {
+        "id": task.id,
+        "user_id": task.user_id,
+        "title": task.title,
+        "description": task.description,
+        "task_date": task.task_date.isoformat(),
+        "start_time": task.start_time.strftime("%H:%M"),
+        "end_time": task.end_time.strftime("%H:%M"),
+        "is_recurring": task.is_recurring,
+        "recurrence_pattern": task.recurrence_pattern,
+        "is_completed": task.is_completed,
+        "completed_at": completed_at.isoformat() if completed_at else None,
+        "created_at": created_at.isoformat(),
+        "updated_at": updated_at.isoformat(),
     }
 
 # -- ROUTES --
@@ -364,6 +402,114 @@ def delete_goal_route(goal_id: int):
         db.rollback()
         return jsonify({"error": str(e)}), 500
 
+    finally:
+        db.close()
+
+
+# -- SCHEDULED TASKS ROUTES --
+
+@app.route("/api/scheduled-tasks", methods=["POST"])
+def create_scheduled_task_route():
+    db = SessionLocal()
+    try:
+        data = request.get_json()
+        user_id = g.user_id
+
+        task = create_scheduled_task(
+            db=db,
+            user_id=user_id,
+            title=data["title"],
+            description=data.get("description"),
+            task_date=parse_date(data["task_date"]),
+            start_time=parse_time(data["start_time"]),
+            end_time=parse_time(data["end_time"]),
+            is_recurring=data.get("is_recurring", False),
+            recurrence_pattern=data.get("recurrence_pattern"),
+        )
+
+        return jsonify(scheduled_task_to_dict(task)), 201
+
+    except KeyError as e:
+        return jsonify({"error": f"missing field: {e}"}), 400
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        db.close()
+
+
+@app.route("/api/scheduled-tasks", methods=["GET"])
+def get_scheduled_tasks_route():
+    db = SessionLocal()
+    try:
+        user_id = g.user_id
+        start_date = parse_date(request.args.get("start_date"))
+        end_date = parse_date(request.args.get("end_date"))
+
+        tasks = get_scheduled_tasks_for_week(
+            db=db,
+            user_id=user_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        return jsonify([scheduled_task_to_dict(task) for task in tasks]), 200
+
+    except KeyError as e:
+        return jsonify({"error": f"missing parameter: {e}"}), 400
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        db.close()
+
+
+@app.route("/api/scheduled-tasks/<int:task_id>", methods=["PATCH"])
+def update_scheduled_task_route(task_id: int):
+    db = SessionLocal()
+    try:
+        data = request.get_json()
+        user_id = g.user_id
+
+        # Parse optional fields
+        update_params = {"db": db, "task_id": task_id, "user_id": user_id}
+
+        if "title" in data:
+            update_params["title"] = data["title"]
+        if "description" in data:
+            update_params["description"] = data["description"]
+        if "task_date" in data:
+            update_params["task_date"] = parse_date(data["task_date"])
+        if "start_time" in data:
+            update_params["start_time"] = parse_time(data["start_time"])
+        if "end_time" in data:
+            update_params["end_time"] = parse_time(data["end_time"])
+        if "is_recurring" in data:
+            update_params["is_recurring"] = data["is_recurring"]
+        if "recurrence_pattern" in data:
+            update_params["recurrence_pattern"] = data["recurrence_pattern"]
+        if "is_completed" in data:
+            update_params["is_completed"] = data["is_completed"]
+
+        task = update_scheduled_task(**update_params)
+
+        return jsonify(scheduled_task_to_dict(task)), 200
+
+    except ScheduledTaskNotFound as e:
+        return jsonify({"error": str(e)}), 404
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        db.close()
+
+
+@app.route("/api/scheduled-tasks/<int:task_id>", methods=["DELETE"])
+def delete_scheduled_task_route(task_id: int):
+    db = SessionLocal()
+    try:
+        delete_scheduled_task(db=db, task_id=task_id, user_id=g.user_id)
+        return jsonify({"message": "Scheduled task deleted successfully"}), 200
+
+    except ScheduledTaskNotFound as e:
+        return jsonify({"error": str(e)}), 404
     finally:
         db.close()
 

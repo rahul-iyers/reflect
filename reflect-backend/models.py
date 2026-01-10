@@ -7,6 +7,8 @@ from sqlalchemy import (
     Date,
     DateTime,
     Text,
+    Time,
+    Boolean,
     UniqueConstraint,
     ForeignKey
 )
@@ -141,4 +143,52 @@ class Goal(Base):
             f"user_id={self.user_id} "
             f"status={self.status} "
             f"deadline={self.deadline}>"
+        )
+
+class ScheduledTask(Base):
+    __tablename__ = "scheduled_tasks"
+
+    # identity
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False)
+
+    # task content
+    title = Column(Text, nullable=False)
+    description = Column(Text, nullable=True)
+
+    # time scheduling
+    task_date = Column(Date, nullable=False)
+    start_time = Column(Time, nullable=False)
+    end_time = Column(Time, nullable=False)
+
+    # recurrence
+    is_recurring = Column(Boolean, default=False, nullable=False)
+    recurrence_pattern = Column(Text, nullable=True)  # 'daily', 'weekly', 'weekdays', or JSON for custom
+
+    # status
+    is_completed = Column(Boolean, default=False, nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+
+    # metadata
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<ScheduledTask "
+            f"id={self.id} "
+            f"user_id={self.user_id} "
+            f"title={self.title} "
+            f"date={self.task_date} "
+            f"time={self.start_time}-{self.end_time}>"
         )

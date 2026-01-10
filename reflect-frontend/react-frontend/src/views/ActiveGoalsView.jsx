@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Target, Calendar, CheckCircle, Trash2, Loader2 } from 'lucide-react';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function ActiveGoalsView({ goals, onComplete, onDelete, loading }) {
+  const { timeOfDay } = useTheme();
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -37,7 +39,7 @@ export default function ActiveGoalsView({ goals, onComplete, onDelete, loading }
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="animate-spin text-amber-400" size={48} />
+        <Loader2 className={`animate-spin ${timeOfDay === 'morning' ? 'text-blue-400' : 'text-amber-400'}`} size={48} />
       </div>
     );
   }

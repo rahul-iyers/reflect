@@ -6,6 +6,7 @@ import ReflectionQuestion from './components/ReflectionQuestion';
 import QuestionNavigation from './components/QuestionNavigation';
 import Notification from './components/Notification';
 import ReflectionSummary from './components/ReflectionSummary';
+import QuoteOfTheDay from './components/QuoteOfTheDay';
 import GoalModal from './views/GoalModal';
 import JournalModal from './views/JournalModal';
 import ActiveGoalsView from './views/ActiveGoalsView';
@@ -13,24 +14,43 @@ import CompletedGoalsView from './views/CompletedGoalsView';
 import JournalEntriesView from './components/JournalEntriesView';
 import TodayJournalView from './components/TodayJournalView';
 import PreviousDaysView from './components/PreviousDaysView';
+import WeeklyCalendarView from './components/WeeklyCalendarView';
+import TaskModal from './components/TaskModal';
 import useReflection from './hooks/useReflection';
 import useGoals from './hooks/useGoals';
 import * as api from './services/api';
+import { useTheme } from './contexts/ThemeContext';
 
 export default function ReflectionApp() {
   const USER_ID = 1;
+  const { timeOfDay } = useTheme();
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeView, setActiveView] = useState('evening-reflection');
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [journalModalOpen, setJournalModalOpen] = useState(false);
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [taskModalData, setTaskModalData] = useState(null);
   const [goalLoading, setGoalLoading] = useState(false);
   const [journalLoading, setJournalLoading] = useState(false);
   const [notification, setNotification] = useState(null);
   const [stats, setStats] = useState({ current_streak: 0, total_reflections: 0 });
+  const [showQuote, setShowQuote] = useState(false);
 
   const reflection = useReflection(USER_ID);
   const goals = useGoals(USER_ID);
+
+  // Check if quote should be shown today
+  React.useEffect(() => {
+    const lastQuoteDate = localStorage.getItem('lastQuoteDate');
+    const today = api.getTodayDate();
+
+    if (lastQuoteDate !== today && activeView === 'evening-reflection') {
+      // Show quote on first visit of the day
+      setShowQuote(true);
+      localStorage.setItem('lastQuoteDate', today);
+    }
+  }, [activeView]);
 
   // Load stats on mount
   React.useEffect(() => {
@@ -44,10 +64,6 @@ export default function ReflectionApp() {
     };
     loadStats();
   }, [USER_ID]);
-  
-  const currentHour = new Date().getHours();
-  const timeOfDay = currentHour >= 6 && currentHour < 18 ? 'morning' : 'evening';
-  const colorScheme = timeOfDay === 'morning' ? 'blue' : 'amber';
 
   const reflectionQuestions = [
     {
@@ -129,6 +145,30 @@ export default function ReflectionApp() {
     } finally {
       setJournalLoading(false);
     }
+  };
+
+  const handleOpenTaskModal = (taskData = null) => {
+    setTaskModalData(taskData);
+    setTaskModalOpen(true);
+  };
+
+  const handleCloseTaskModal = () => {
+    setTaskModalOpen(false);
+    setTaskModalData(null);
+  };
+
+  const handleTaskSuccess = () => {
+    // Refresh the weekly calendar view
+    if (activeView === 'weekly-plan') {
+      setActiveView('weekly-plan-refresh');
+      setTimeout(() => setActiveView('weekly-plan'), 10);
+    }
+    setNotification({
+      type: 'success',
+      title: 'Task saved! ✓',
+      message: 'Your schedule has been updated.'
+    });
+    setTimeout(() => setNotification(null), 3000);
   };
 
   const handleCompleteGoal = async (goalId) => {
@@ -329,6 +369,26 @@ export default function ReflectionApp() {
           </div>
         );
 
+      case 'weekly-plan':
+      case 'weekly-plan-refresh':
+        return (
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-7xl mx-auto px-8 py-16">
+              <div className="mb-8">
+                <h1 className="text-4xl font-bold text-zinc-100 mb-2" style={{ fontFamily: "'Playfair Display', serif" }}>
+                  Weekly Planner
+                </h1>
+                <p className="text-zinc-400">Plan and schedule your day, hour by hour</p>
+              </div>
+              <WeeklyCalendarView
+                userId={USER_ID}
+                onOpenTaskModal={handleOpenTaskModal}
+                key={activeView}
+              />
+            </div>
+          </div>
+        );
+
       case 'previous-days':
         return (
           <div className="flex-1 overflow-y-auto">
@@ -369,9 +429,9 @@ export default function ReflectionApp() {
 
   // Updated sidebar items to include journal entries
   const sidebarItemsConfig = [
-    { 
-      id: 'evening-reflection', 
-      label: timeOfDay === 'evening' ? 'Tonight\'s Reflection' : 'Morning Insights', 
+    {
+      id: 'evening-reflection',
+      label: timeOfDay === 'evening' ? 'Tonight\'s Reflection' : 'Morning Insights',
       icon: timeOfDay === 'evening' ? Moon : TrendingUp,
       badge: timeOfDay === 'evening' ? 'Now' : null,
       highlight: true
@@ -380,6 +440,7 @@ export default function ReflectionApp() {
     { id: 'new-goal', label: 'New Goal', icon: Plus, action: true },
     { id: 'new-journal', label: 'New Journal Entry', icon: PenSquare, action: true },
     { type: 'divider' },
+    { id: 'weekly-plan', label: 'Plan', icon: Calendar },
     { id: 'journal-entries', label: 'Journal Entries', icon: BookOpen },
     { id: 'active-goals', label: 'Active Goals', icon: Target, badge: goals.activeGoals.length || null },
     { id: 'completed-goals', label: 'Completed Goals', icon: CheckCircle, badge: goals.completedGoals.length || null },
@@ -434,6 +495,18 @@ export default function ReflectionApp() {
         onSubmit={handleCreateJournal}
         loading={journalLoading}
       />
+
+      <TaskModal
+        isOpen={taskModalOpen}
+        onClose={handleCloseTaskModal}
+        userId={USER_ID}
+        initialData={taskModalData}
+        onSuccess={handleTaskSuccess}
+      />
+
+      {showQuote && (
+        <QuoteOfTheDay onClose={() => setShowQuote(false)} />
+      )}
     </div>
   );
 }

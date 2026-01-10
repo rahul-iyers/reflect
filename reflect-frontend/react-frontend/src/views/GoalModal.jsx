@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { X, Target, Calendar, Loader2 } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function GoalModal({ isOpen, onClose, onSubmit, loading }) {
+  const { timeOfDay } = useTheme();
   const [description, setDescription] = useState('');
   const [deadline, setDeadline] = useState('');
   const [error, setError] = useState('');
@@ -29,11 +31,19 @@ export default function GoalModal({ isOpen, onClose, onSubmit, loading }) {
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-zinc-900 rounded-2xl border border-amber-400/20 max-w-md w-full shadow-2xl shadow-amber-500/10 animate-fade-in">
+      <div className={`bg-zinc-900 rounded-2xl border max-w-md w-full shadow-2xl animate-fade-in ${
+        timeOfDay === 'morning'
+          ? 'border-blue-400/20 shadow-blue-500/10'
+          : 'border-amber-400/20 shadow-amber-500/10'
+      }`}>
         <div className="flex items-center justify-between p-6 border-b border-zinc-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400/20 to-orange-500/20 border border-amber-400/30 flex items-center justify-center">
-              <Target className="text-amber-400" size={20} />
+            <div className={`w-10 h-10 rounded-xl border flex items-center justify-center ${
+              timeOfDay === 'morning'
+                ? 'bg-gradient-to-br from-blue-400/20 to-sky-500/20 border-blue-400/30'
+                : 'bg-gradient-to-br from-amber-400/20 to-orange-500/20 border-amber-400/30'
+            }`}>
+              <Target className={timeOfDay === 'morning' ? 'text-blue-400' : 'text-amber-400'} size={20} />
             </div>
             <h2 className="text-xl font-bold text-zinc-100" style={{ fontFamily: "'Playfair Display', serif" }}>
               Create New Goal
@@ -59,7 +69,9 @@ export default function GoalModal({ isOpen, onClose, onSubmit, loading }) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g., Complete the project, Learn React, Exercise 3x/week..."
-              className="w-full h-32 px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-amber-400/50 transition-all resize-none"
+              className={`w-full h-32 px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-zinc-200 placeholder-zinc-500 focus:outline-none transition-all resize-none ${
+                timeOfDay === 'morning' ? 'focus:border-blue-400/50' : 'focus:border-amber-400/50'
+              }`}
               disabled={loading}
             />
           </div>
@@ -73,7 +85,9 @@ export default function GoalModal({ isOpen, onClose, onSubmit, loading }) {
               type="date"
               value={deadline}
               onChange={(e) => setDeadline(e.target.value)}
-              className="w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-zinc-200 focus:outline-none focus:border-amber-400/50 transition-all"
+              className={`w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-zinc-200 focus:outline-none transition-all ${
+                timeOfDay === 'morning' ? 'focus:border-blue-400/50' : 'focus:border-amber-400/50'
+              }`}
               disabled={loading}
             />
           </div>
@@ -89,7 +103,11 @@ export default function GoalModal({ isOpen, onClose, onSubmit, loading }) {
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 text-zinc-900 hover:shadow-lg hover:shadow-amber-500/30 transition-all font-bold disabled:opacity-50 flex items-center justify-center gap-2"
+              className={`flex-1 px-4 py-3 rounded-xl text-zinc-900 hover:shadow-lg transition-all font-bold disabled:opacity-50 flex items-center justify-center gap-2 ${
+                timeOfDay === 'morning'
+                  ? 'bg-gradient-to-r from-blue-400 to-sky-500 hover:shadow-blue-500/30'
+                  : 'bg-gradient-to-r from-amber-400 to-orange-500 hover:shadow-amber-500/30'
+              }`}
               disabled={loading || !description.trim()}
             >
               {loading ? (
