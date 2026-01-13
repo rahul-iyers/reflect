@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Calendar, Loader2, Trash2, Search, ChevronDown, ChevronUp, Filter } from 'lucide-react';
+import { BookOpen, Calendar, Loader2, Trash2, Search, ChevronDown, ChevronUp, Filter, Edit2 } from 'lucide-react';
 import * as api from '../services/api';
 import ConfirmDialog from './ConfirmDialog';
+import JournalModal from '../views/JournalModal';
 import { useTheme } from '../contexts/ThemeContext';
+import './RichTextEditor.css';
 
 export default function JournalEntriesView({ userId }) {
   const { timeOfDay } = useTheme();
@@ -15,6 +17,8 @@ export default function JournalEntriesView({ userId }) {
   const [dateFilter, setDateFilter] = useState('all'); // 'all', 'week', 'month', '3months', '6months', 'year'
   const [visibleMonths, setVisibleMonths] = useState(3); // Start with 3 months visible
   const [collapsedMonths, setCollapsedMonths] = useState(new Set()); // Track collapsed month sections
+  const [editingEntry, setEditingEntry] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadJournalEntries();
@@ -61,6 +65,23 @@ export default function JournalEntriesView({ userId }) {
       setError(err.message);
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleUpdateEntry = async (content) => {
+    if (!editingEntry) return;
+
+    setSaving(true);
+    try {
+      await api.updateJournalEntry(userId, editingEntry.id, content);
+      // Reload entries to get updated data
+      await loadJournalEntries();
+      setEditingEntry(null);
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -286,25 +307,44 @@ export default function JournalEntriesView({ userId }) {
                         {monthData.dates[date].map((entry) => (
                           <div
                             key={entry.id}
-                            className={`bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 transition-all ml-6 ${
+                            className={`bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 transition-all ml-6 cursor-pointer group ${
                               timeOfDay === 'morning' ? 'hover:border-blue-400/30' : 'hover:border-amber-400/30'
                             }`}
+                            onClick={() => setEditingEntry(entry)}
                           >
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex items-center gap-2 text-sm text-zinc-500">
                                 <span>{formatTime(entry.created_at)}</span>
                               </div>
-                              <button
-                                onClick={() => setDeleteConfirm(entry.id)}
-                                className="text-zinc-500 hover:text-red-400 transition-colors"
-                                title="Delete entry"
-                              >
-                                <Trash2 size={18} />
-                              </button>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingEntry(entry);
+                                  }}
+                                  className={`opacity-0 group-hover:opacity-100 text-zinc-500 transition-all ${
+                                    timeOfDay === 'morning' ? 'hover:text-blue-400' : 'hover:text-amber-400'
+                                  }`}
+                                  title="Edit entry"
+                                >
+                                  <Edit2 size={18} />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeleteConfirm(entry.id);
+                                  }}
+                                  className="text-zinc-500 hover:text-red-400 transition-colors"
+                                  title="Delete entry"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </div>
                             </div>
-                            <p className="text-zinc-300 leading-relaxed whitespace-pre-wrap">
-                              {entry.content}
-                            </p>
+                            <div
+                              className="prose prose-invert max-w-none text-zinc-300 leading-relaxed"
+                              dangerouslySetInnerHTML={{ __html: entry.content }}
+                            />
                           </div>
                         ))}
                       </div>
@@ -328,6 +368,18 @@ export default function JournalEntriesView({ userId }) {
             Load More Months ({sortedMonths.length - visibleMonths} remaining)
           </button>
         </div>
+      )}
+
+      {/* Edit Modal */}
+      {editingEntry && (
+        <JournalModal
+          isOpen={true}
+          onClose={() => setEditingEntry(null)}
+          onSubmit={handleUpdateEntry}
+          loading={saving}
+          initialContent={editingEntry.content}
+          isEditing={true}
+        />
       )}
 
       {/* Delete Confirmation Dialog */}

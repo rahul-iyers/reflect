@@ -2,11 +2,21 @@ import React, { useState } from 'react';
 import { X, Target, Calendar, Loader2 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
-export default function GoalModal({ isOpen, onClose, onSubmit, loading }) {
+export default function GoalModal({ isOpen, onClose, onSubmit, loading, initialDescription = '', initialDeadline = '', isEditing = false }) {
   const { timeOfDay } = useTheme();
-  const [description, setDescription] = useState('');
-  const [deadline, setDeadline] = useState('');
+  const [description, setDescription] = useState(initialDescription);
+  const [deadline, setDeadline] = useState(initialDeadline);
   const [error, setError] = useState('');
+
+  // Update state when initial values change (for edit mode)
+  React.useEffect(() => {
+    if (initialDescription) {
+      setDescription(initialDescription);
+    }
+    if (initialDeadline) {
+      setDeadline(initialDeadline);
+    }
+  }, [initialDescription, initialDeadline]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -46,7 +56,7 @@ export default function GoalModal({ isOpen, onClose, onSubmit, loading }) {
               <Target className={timeOfDay === 'morning' ? 'text-blue-400' : 'text-amber-400'} size={20} />
             </div>
             <h2 className="text-xl font-bold text-zinc-100" style={{ fontFamily: "'Playfair Display', serif" }}>
-              Create New Goal
+              {isEditing ? 'Edit Goal' : 'Create New Goal'}
             </h2>
           </div>
           <button onClick={onClose} className="text-zinc-400 hover:text-zinc-200 transition-colors">
@@ -113,10 +123,10 @@ export default function GoalModal({ isOpen, onClose, onSubmit, loading }) {
               {loading ? (
                 <>
                   <Loader2 className="animate-spin" size={20} />
-                  Creating...
+                  {isEditing ? 'Updating...' : 'Creating...'}
                 </>
               ) : (
-                'Create Goal'
+                isEditing ? 'Update Goal' : 'Create Goal'
               )}
             </button>
           </div>

@@ -19,6 +19,7 @@ from services.reflections import (
 from services.journal_entries import (
     create_journal_entry,
     get_journal_entries_for_date,
+    update_journal_entry,
     delete_journal_entry,
     InvalidJournalEntry,
     JournalEntryNotFound
@@ -41,6 +42,8 @@ from services.scheduled_tasks import (
     delete_scheduled_task,
     ScheduledTaskNotFound
 )
+
+from services.ai_insights import generate_morning_insights
 
 # -- HELPERS --
 
@@ -269,6 +272,33 @@ def get_journal_entries_route():
             .all()
         )
         return jsonify([journal_entry_to_dict(e) for e in entries]), 200
+
+    finally:
+        db.close()
+
+
+@app.route("/api/journal-entries/<int:entry_id>", methods=["PATCH"])
+def update_journal_entry_route(entry_id):
+    db = SessionLocal()
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Request body must be JSON"}), 400
+
+        entry = update_journal_entry(
+            db=db,
+            entry_id=entry_id,
+            user_id=g.user_id,
+            content=data.get("content"),
+        )
+
+        return jsonify(journal_entry_to_dict(entry)), 200
+
+    except JournalEntryNotFound as e:
+        return jsonify({"error": str(e)}), 404
+
+    except InvalidJournalEntry as e:
+        return jsonify({"error": str(e)}), 400
 
     finally:
         db.close()
@@ -510,6 +540,37 @@ def delete_scheduled_task_route(task_id: int):
 
     except ScheduledTaskNotFound as e:
         return jsonify({"error": str(e)}), 404
+    finally:
+        db.close()
+
+
+@app.route("/api/morning-insights", methods=["GET"])
+def get_morning_insights():
+    """Generate AI-powered morning insights based on goals and yesterday's reflection"""
+    from datetime import timedelta
+    db = SessionLocal()
+    try:
+        # Get user's active goals
+        goals = get_goals_for_user(db, g.user_id, status='active')
+        goals_list = [goal_to_dict(g) for g in goals]
+
+        # Get yesterday's reflection
+        yesterday = date.today() - timedelta(days=1)
+        yesterday_reflection = None
+        try:
+            reflection = get_reflection_for_date(db, g.user_id, yesterday)
+            yesterday_reflection = reflection_to_dict(reflection) if reflection else None
+        except:
+            pass  # No reflection from yesterday is okay
+
+        # Generate insights
+        insights = generate_morning_insights(goals_list, yesterday_reflection)
+
+        return jsonify(insights), 200
+
+    except Exception as e:
+        print(f"Error in get_morning_insights: {e}")
+        return jsonify({"error": "Failed to generate insights"}), 500
     finally:
         db.close()
 

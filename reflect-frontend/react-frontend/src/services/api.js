@@ -99,6 +99,18 @@ export const getAllJournalEntries = async (userId) => {
 };
 
 /**
+ * Update a journal entry
+ */
+export const updateJournalEntry = async (userId, entryId, content) => {
+  const response = await fetch(`${API_BASE_URL}/journal-entries/${entryId}`, {
+    method: 'PATCH',
+    headers: getHeaders(userId),
+    body: JSON.stringify({ content }),
+  });
+  return handleResponse(response);
+};
+
+/**
  * Delete a journal entry
  */
 export const deleteJournalEntry = async (userId, entryId) => {
@@ -248,6 +260,17 @@ export const updateScheduledTask = async (userId, taskId, updates) => {
     method: 'PATCH',
     headers: getHeaders(userId),
     body: JSON.stringify(updates),
+  });
+  return handleResponse(response);
+};
+
+/**
+ * Get AI-powered morning insights
+ */
+export const getMorningInsights = async (userId) => {
+  const response = await fetch(`${API_BASE_URL}/morning-insights`, {
+    method: 'GET',
+    headers: getHeaders(userId),
   });
   return handleResponse(response);
 };

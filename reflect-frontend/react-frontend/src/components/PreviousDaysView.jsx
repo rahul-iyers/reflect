@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Loader2, X } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
 import * as api from '../services/api';
 
 export default function PreviousDaysView({ userId }) {
+  const { timeOfDay } = useTheme();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [reflections, setReflections] = useState({});
   const [loading, setLoading] = useState(false);
@@ -148,7 +150,7 @@ export default function PreviousDaysView({ userId }) {
         {/* Calendar days */}
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <Loader2 className="animate-spin text-amber-400" size={36} />
+            <Loader2 className={`animate-spin ${timeOfDay === 'morning' ? 'text-blue-400' : 'text-amber-400'}`} size={36} />
           </div>
         ) : (
           <div className="grid grid-cols-7 gap-2">
@@ -164,9 +166,11 @@ export default function PreviousDaysView({ userId }) {
                   className={`
                     aspect-square rounded-lg p-2 text-sm font-medium transition-all
                     ${!day ? 'invisible' : ''}
-                    ${today ? 'ring-2 ring-amber-400' : ''}
-                    ${hasRefl 
-                      ? 'bg-gradient-to-br from-amber-400/20 to-orange-500/20 border border-amber-400/30 text-amber-400 hover:from-amber-400/30 hover:to-orange-500/30 cursor-pointer' 
+                    ${today ? `ring-2 ${timeOfDay === 'morning' ? 'ring-blue-400' : 'ring-amber-400'}` : ''}
+                    ${hasRefl
+                      ? timeOfDay === 'morning'
+                        ? 'bg-gradient-to-br from-blue-400/20 to-sky-500/20 border border-blue-400/30 text-blue-400 hover:from-blue-400/30 hover:to-sky-500/30 cursor-pointer'
+                        : 'bg-gradient-to-br from-amber-400/20 to-orange-500/20 border border-amber-400/30 text-amber-400 hover:from-amber-400/30 hover:to-orange-500/30 cursor-pointer'
                       : 'bg-zinc-800/30 text-zinc-600 cursor-default'
                     }
                   `}
@@ -182,7 +186,11 @@ export default function PreviousDaysView({ userId }) {
       {/* Legend */}
       <div className="flex gap-6 text-sm text-zinc-400">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-gradient-to-br from-amber-400/20 to-orange-500/20 border border-amber-400/30"></div>
+          <div className={`w-4 h-4 rounded ${
+            timeOfDay === 'morning'
+              ? 'bg-gradient-to-br from-blue-400/20 to-sky-500/20 border border-blue-400/30'
+              : 'bg-gradient-to-br from-amber-400/20 to-orange-500/20 border border-amber-400/30'
+          }`}></div>
           <span>Has reflection</span>
         </div>
         <div className="flex items-center gap-2">
@@ -198,7 +206,11 @@ export default function PreviousDaysView({ userId }) {
       {/* Reflection Detail Modal */}
       {selectedReflection && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 rounded-2xl border border-amber-400/20 max-w-2xl w-full shadow-2xl shadow-amber-500/10 animate-fade-in max-h-[80vh] overflow-y-auto">
+          <div className={`bg-zinc-900 rounded-2xl border max-w-2xl w-full shadow-2xl animate-fade-in max-h-[80vh] overflow-y-auto ${
+            timeOfDay === 'morning'
+              ? 'border-blue-400/20 shadow-blue-500/10'
+              : 'border-amber-400/20 shadow-amber-500/10'
+          }`}>
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-zinc-800 sticky top-0 bg-zinc-900">
               <div>
@@ -218,21 +230,21 @@ export default function PreviousDaysView({ userId }) {
             <div className="p-6 space-y-6">
               <div className="space-y-4">
                 <div>
-                  <h4 className="text-amber-400 font-semibold mb-2">How was your day?</h4>
+                  <h4 className={`font-semibold mb-2 ${timeOfDay === 'morning' ? 'text-blue-400' : 'text-amber-400'}`}>How was your day?</h4>
                   <p className="text-zinc-300 leading-relaxed whitespace-pre-wrap">
                     {selectedReflection.summary || <span className="text-zinc-600 italic">No answer</span>}
                   </p>
                 </div>
 
                 <div>
-                  <h4 className="text-amber-400 font-semibold mb-2">What did you accomplish?</h4>
+                  <h4 className={`font-semibold mb-2 ${timeOfDay === 'morning' ? 'text-blue-400' : 'text-amber-400'}`}>What did you accomplish?</h4>
                   <p className="text-zinc-300 leading-relaxed whitespace-pre-wrap">
                     {selectedReflection.accomplishments || <span className="text-zinc-600 italic">No answer</span>}
                   </p>
                 </div>
 
                 <div>
-                  <h4 className="text-amber-400 font-semibold mb-2">What to improve tomorrow?</h4>
+                  <h4 className={`font-semibold mb-2 ${timeOfDay === 'morning' ? 'text-blue-400' : 'text-amber-400'}`}>What to improve tomorrow?</h4>
                   <p className="text-zinc-300 leading-relaxed whitespace-pre-wrap">
                     {selectedReflection.improvements_to_make || <span className="text-zinc-600 italic">No answer</span>}
                   </p>

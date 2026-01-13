@@ -7,6 +7,7 @@ import QuestionNavigation from './components/QuestionNavigation';
 import Notification from './components/Notification';
 import ReflectionSummary from './components/ReflectionSummary';
 import QuoteOfTheDay from './components/QuoteOfTheDay';
+import DailyReflectionTabs from './components/DailyReflectionTabs';
 import GoalModal from './views/GoalModal';
 import JournalModal from './views/JournalModal';
 import ActiveGoalsView from './views/ActiveGoalsView';
@@ -189,6 +190,25 @@ export default function ReflectionApp() {
     }
   };
 
+  const handleUpdateGoal = async (goalId, updates) => {
+    try {
+      await api.updateGoal(USER_ID, goalId, updates);
+      await goals.loadGoals(); // Refresh goals list
+      setNotification({
+        type: 'success',
+        title: 'Goal updated! ✓',
+        message: 'Your goal has been updated.'
+      });
+      setTimeout(() => setNotification(null), 3000);
+    } catch (err) {
+      setNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to update goal'
+      });
+    }
+  };
+
   const handleDeleteGoal = async (goalId) => {
     try {
       await api.deleteGoal(USER_ID, goalId);
@@ -229,78 +249,83 @@ export default function ReflectionApp() {
   const renderContent = () => {
     switch (activeView) {
       case 'evening-reflection':
-        // Show summary if completed, otherwise show questions
-        if (reflection.completed) {
-          return (
-            <div className="flex-1 overflow-y-auto">
-              <div className="max-w-3xl mx-auto px-8 py-16">
-                {reflection.success && (
-                  <Notification
-                    type="success"
-                    title="Reflection updated! ✨"
-                    message="Your changes have been saved."
-                  />
-                )}
-                {reflection.error && (
-                  <Notification
-                    type="error"
-                    title="Error"
-                    message={reflection.error}
-                    onClose={() => reflection.setError(null)}
-                  />
-                )}
-                <ReflectionSummary
-                  reflection={reflection.savedReflection}
-                  onUpdate={reflection.handleUpdateReflection}
-                  loading={reflection.loading}
-                />
-              </div>
-            </div>
-          );
-        }
-        
-        return (
+        // Render the reflection content (questions or summary)
+        const reflectionContent = reflection.completed ? (
+          <div className="max-w-3xl mx-auto">
+            {reflection.success && (
+              <Notification
+                type="success"
+                title="Reflection updated! ✨"
+                message="Your changes have been saved."
+              />
+            )}
+            {reflection.error && (
+              <Notification
+                type="error"
+                title="Error"
+                message={reflection.error}
+                onClose={() => reflection.setError(null)}
+              />
+            )}
+            <ReflectionSummary
+              reflection={reflection.savedReflection}
+              onUpdate={reflection.handleUpdateReflection}
+              loading={reflection.loading}
+            />
+          </div>
+        ) : (
           <>
             <ProgressBar
               currentQuestion={reflection.currentQuestion}
               totalQuestions={reflectionQuestions.length}
               currentDate={api.formatDate(api.getTodayDate())}
             />
-            <div className="flex-1 overflow-y-auto">
-              <div className="max-w-3xl mx-auto px-8 py-16">
-                {reflection.success && (
-                  <Notification
-                    type="success"
-                    title="Reflection saved successfully! ✨"
-                    message="Great job reflecting on your day."
-                  />
-                )}
-                {reflection.error && (
-                  <Notification
-                    type="error"
-                    title="Error"
-                    message={reflection.error}
-                    onClose={() => reflection.setError(null)}
-                  />
-                )}
-                <ReflectionQuestion
-                  question={reflectionQuestions[reflection.currentQuestion]}
-                  value={reflection.answers[reflection.currentQuestion]}
-                  onChange={reflection.handleAnswerChange}
-                  disabled={reflection.loading}
+            <div className="max-w-3xl mx-auto">
+              {reflection.success && (
+                <Notification
+                  type="success"
+                  title="Reflection saved successfully! ✨"
+                  message="Great job reflecting on your day."
                 />
-                <QuestionNavigation
-                  currentQuestion={reflection.currentQuestion}
-                  totalQuestions={reflectionQuestions.length}
-                  canProceed={!!reflection.answers[reflection.currentQuestion]}
-                  loading={reflection.loading}
-                  onPrevious={reflection.handlePrevious}
-                  onNext={reflection.handleNext}
-                  onSubmit={reflection.handleSubmitReflection}
+              )}
+              {reflection.error && (
+                <Notification
+                  type="error"
+                  title="Error"
+                  message={reflection.error}
+                  onClose={() => reflection.setError(null)}
                 />
-              </div>
+              )}
+              <ReflectionQuestion
+                question={reflectionQuestions[reflection.currentQuestion]}
+                value={reflection.answers[reflection.currentQuestion]}
+                onChange={reflection.handleAnswerChange}
+                disabled={reflection.loading}
+              />
+              <QuestionNavigation
+                currentQuestion={reflection.currentQuestion}
+                totalQuestions={reflectionQuestions.length}
+                canProceed={!!reflection.answers[reflection.currentQuestion]}
+                loading={reflection.loading}
+                onPrevious={reflection.handlePrevious}
+                onNext={reflection.handleNext}
+                onSubmit={reflection.handleSubmitReflection}
+              />
             </div>
           </>
+        );
+
+        return (
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-4xl mx-auto px-8 py-16">
+              <DailyReflectionTabs
+                userId={USER_ID}
+                reflectionContent={reflectionContent}
+                initialTab={timeOfDay === 'morning' ? 'insights' : 'reflection'}
+                onNavigate={setActiveView}
+              />
+            </div>
+          </div>
         );
 
       case 'active-goals':
@@ -308,14 +333,19 @@ export default function ReflectionApp() {
           <div className="flex-1 overflow-y-auto">
             <div className="max-w-4xl mx-auto px-8 py-16">
               <div className="mb-8">
-                <h1 className="text-4xl font-bold text-zinc-100 mb-2" style={{ fontFamily: "'Playfair Display', serif" }}>
+                <h1 className={`text-4xl font-bold mb-2 ${
+                  timeOfDay === 'morning' ? 'text-zinc-100' : 'text-zinc-100'
+                }`} style={{ fontFamily: "'Playfair Display', serif" }}>
                   Active Goals
                 </h1>
-                <p className="text-zinc-400">Track and manage your current goals</p>
+                <p className={timeOfDay === 'morning' ? 'text-zinc-400' : 'text-zinc-400'}>
+                  Track and manage your current goals
+                </p>
               </div>
               <ActiveGoalsView
                 goals={goals.activeGoals}
                 onComplete={handleCompleteGoal}
+                onUpdate={handleUpdateGoal}
                 onDelete={handleDeleteGoal}
                 loading={goals.loading}
               />
@@ -328,10 +358,14 @@ export default function ReflectionApp() {
           <div className="flex-1 overflow-y-auto">
             <div className="max-w-4xl mx-auto px-8 py-16">
               <div className="mb-8">
-                <h1 className="text-4xl font-bold text-zinc-100 mb-2" style={{ fontFamily: "'Playfair Display', serif" }}>
+                <h1 className={`text-4xl font-bold mb-2 ${
+                  timeOfDay === 'morning' ? 'text-zinc-100' : 'text-zinc-100'
+                }`} style={{ fontFamily: "'Playfair Display', serif" }}>
                   Completed Goals
                 </h1>
-                <p className="text-zinc-400">Celebrate your achievements</p>
+                <p className={timeOfDay === 'morning' ? 'text-zinc-400' : 'text-zinc-400'}>
+                  Celebrate your achievements
+                </p>
               </div>
               <CompletedGoalsView
                 goals={goals.completedGoals}
@@ -395,7 +429,7 @@ export default function ReflectionApp() {
             <div className="max-w-6xl mx-auto px-8 py-16">
               <div className="mb-8">
                 <div className="flex items-center gap-3 mb-2">
-                  <Calendar className="text-amber-400" size={32} />
+                  <Calendar className={timeOfDay === 'morning' ? 'text-blue-400' : 'text-amber-400'} size={32} />
                   <h1 className="text-4xl font-bold text-zinc-100" style={{ fontFamily: "'Playfair Display', serif" }}>
                     Previous Days
                   </h1>
@@ -467,7 +501,9 @@ export default function ReflectionApp() {
         <div className="h-screen flex flex-col bg-zinc-950">
           {notification && (
             <div className="absolute top-4 right-4 z-50 animate-fade-in">
-              <div className="bg-zinc-900 border border-amber-400/20 rounded-xl shadow-2xl">
+              <div className={`bg-zinc-900 rounded-xl shadow-2xl ${
+                timeOfDay === 'morning' ? 'border border-blue-400/20' : 'border border-amber-400/20'
+              }`}>
                 <Notification
                   type={notification.type}
                   title={notification.title}
@@ -505,7 +541,13 @@ export default function ReflectionApp() {
       />
 
       {showQuote && (
-        <QuoteOfTheDay onClose={() => setShowQuote(false)} />
+        <QuoteOfTheDay
+          onClose={() => setShowQuote(false)}
+          onContinue={() => {
+            setShowQuote(false);
+            setActiveView('evening-reflection');
+          }}
+        />
       )}
     </div>
   );

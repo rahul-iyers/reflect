@@ -1,17 +1,34 @@
 import React, { useState } from 'react';
 import { X, PenSquare, Loader2 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import RichTextEditor from '../components/RichTextEditor';
+import '../components/RichTextEditor.css';
 
-export default function JournalModal({ isOpen, onClose, onSubmit, loading }) {
+export default function JournalModal({ isOpen, onClose, onSubmit, loading, initialContent = '', isEditing = false }) {
   const { timeOfDay } = useTheme();
-  const [content, setContent] = useState('');
+  const [content, setContent] = useState(initialContent);
   const [error, setError] = useState('');
+
+  // Update content when initialContent changes (for edit mode)
+  React.useEffect(() => {
+    if (initialContent) {
+      setContent(initialContent);
+    }
+  }, [initialContent]);
+
+  // Helper to get text length from HTML
+  const getTextLength = (html) => {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent.length || 0;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    if (!content.trim()) {
+    const textLength = getTextLength(content);
+    if (textLength === 0 || !content.trim()) {
       setError('Please write something in your journal');
       return;
     }
@@ -44,7 +61,7 @@ export default function JournalModal({ isOpen, onClose, onSubmit, loading }) {
               <PenSquare className={timeOfDay === 'morning' ? 'text-blue-400' : 'text-amber-400'} size={20} />
             </div>
             <h2 className="text-xl font-bold text-zinc-100" style={{ fontFamily: "'Playfair Display', serif" }}>
-              New Journal Entry
+              {isEditing ? 'Edit Journal Entry' : 'New Journal Entry'}
             </h2>
           </div>
           <button onClick={onClose} className="text-zinc-400 hover:text-zinc-200 transition-colors">
@@ -63,18 +80,14 @@ export default function JournalModal({ isOpen, onClose, onSubmit, loading }) {
             <label className="block text-sm font-medium text-zinc-300 mb-2">
               What's on your mind?
             </label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
+            <RichTextEditor
+              content={content}
+              onChange={setContent}
               placeholder="Write freely... This is your space to vent, capture ideas, or dump thoughts."
-              className={`w-full h-96 px-4 py-3 bg-zinc-800/50 border border-zinc-700 rounded-xl text-zinc-200 placeholder-zinc-500 focus:outline-none transition-all resize-none text-base leading-relaxed ${
-                timeOfDay === 'morning' ? 'focus:border-blue-400/50' : 'focus:border-amber-400/50'
-              }`}
               disabled={loading}
-              style={{ fontFamily: "'Inter', sans-serif" }}
             />
             <p className="text-xs text-zinc-600 mt-2 text-right">
-              {content.length} characters
+              {getTextLength(content)} characters
             </p>
           </div>
 
@@ -94,7 +107,7 @@ export default function JournalModal({ isOpen, onClose, onSubmit, loading }) {
                   ? 'bg-gradient-to-r from-blue-400 to-sky-500 hover:shadow-blue-500/30'
                   : 'bg-gradient-to-r from-amber-400 to-orange-500 hover:shadow-amber-500/30'
               }`}
-              disabled={loading || !content.trim()}
+              disabled={loading || getTextLength(content) === 0}
             >
               {loading ? (
                 <>
@@ -102,7 +115,7 @@ export default function JournalModal({ isOpen, onClose, onSubmit, loading }) {
                   Saving...
                 </>
               ) : (
-                'Save Entry'
+                isEditing ? 'Update Entry' : 'Save Entry'
               )}
             </button>
           </div>

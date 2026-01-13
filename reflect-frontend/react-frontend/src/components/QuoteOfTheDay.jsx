@@ -85,7 +85,7 @@ const QUOTES = [
   }
 ];
 
-export default function QuoteOfTheDay({ onClose }) {
+export default function QuoteOfTheDay({ onClose, onContinue }) {
   const { timeOfDay } = useTheme();
   const [quote, setQuote] = useState(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -106,7 +106,11 @@ export default function QuoteOfTheDay({ onClose }) {
     setIsVisible(false);
     setTimeout(() => {
       setShouldRender(false);
-      if (onClose) onClose();
+      if (onContinue) {
+        onContinue();
+      } else if (onClose) {
+        onClose();
+      }
     }, 500);
   };
 
@@ -194,7 +198,7 @@ export default function QuoteOfTheDay({ onClose }) {
                     : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'
                 }`}
               >
-                Continue to Reflect
+                {timeOfDay === 'morning' ? 'View Morning Insights' : 'Continue to Reflect'}
               </button>
             </div>
           </div>

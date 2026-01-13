@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Loader2, Clock, Trash2 } from 'lucide-react';
+import { BookOpen, Loader2, Clock, Trash2, Edit2 } from 'lucide-react';
 import * as api from '../services/api';
 import ConfirmDialog from './ConfirmDialog';
+import JournalModal from '../views/JournalModal';
+import './RichTextEditor.css';
 
 export default function TodayJournalView({ userId }) {
   const [entries, setEntries] = useState([]);
@@ -9,6 +11,8 @@ export default function TodayJournalView({ userId }) {
   const [error, setError] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [editingEntry, setEditingEntry] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadTodayEntries();
@@ -47,6 +51,23 @@ export default function TodayJournalView({ userId }) {
       setError(err.message);
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleUpdateEntry = async (content) => {
+    if (!editingEntry) return;
+
+    setSaving(true);
+    try {
+      await api.updateJournalEntry(userId, editingEntry.id, content);
+      // Reload entries to get updated data
+      await loadTodayEntries();
+      setEditingEntry(null);
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -108,27 +129,56 @@ export default function TodayJournalView({ userId }) {
         {entries.map((entry) => (
           <div
             key={entry.id}
-            className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 hover:border-amber-400/30 transition-all"
+            className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 hover:border-amber-400/30 transition-all cursor-pointer group"
+            onClick={() => setEditingEntry(entry)}
           >
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2 text-sm text-zinc-500">
                 <Clock size={16} />
                 <span>{formatTime(entry.created_at)}</span>
               </div>
-              <button
-                onClick={() => setDeleteConfirm(entry.id)}
-                className="text-zinc-500 hover:text-red-400 transition-colors"
-                title="Delete entry"
-              >
-                <Trash2 size={18} />
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingEntry(entry);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-amber-400 transition-all"
+                  title="Edit entry"
+                >
+                  <Edit2 size={18} />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteConfirm(entry.id);
+                  }}
+                  className="text-zinc-500 hover:text-red-400 transition-colors"
+                  title="Delete entry"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
             </div>
-            <p className="text-zinc-300 leading-relaxed whitespace-pre-wrap">
-              {entry.content}
-            </p>
+            <div
+              className="prose prose-invert max-w-none text-zinc-300 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: entry.content }}
+            />
           </div>
         ))}
       </div>
+
+      {/* Edit Modal */}
+      {editingEntry && (
+        <JournalModal
+          isOpen={true}
+          onClose={() => setEditingEntry(null)}
+          onSubmit={handleUpdateEntry}
+          loading={saving}
+          initialContent={editingEntry.content}
+          isEditing={true}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
